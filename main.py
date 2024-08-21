@@ -1,10 +1,11 @@
 import os
 import warnings
-from typing import List, Dict, Any, Callable
+from typing import List, Dict, Any
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent as CrewAgent, Task, Process, Crew
+from langchain.tools import Tool
 
 # Suppress Pydantic warning
 warnings.filterwarnings("ignore", category=UserWarning, module='pydantic._internal._config')
@@ -36,7 +37,7 @@ def create_agent(
     role: str,
     goal: str,
     backstory: str,
-    tools: List[Any],
+    tools: List[Tool],
     verbose: bool,
     llm: ChatOpenAI,
     allow_delegation: bool
@@ -69,8 +70,16 @@ def self_improve(agent: CrewAgent, result: Dict[str, Any]) -> None:
 
 def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
     """Create and return various specialized agents."""
-    search_tool = DuckDuckGoSearchRun()
-    file_reader_tool = FileReaderTool()
+    search_tool = Tool(
+        name="DuckDuckGo Search",
+        func=DuckDuckGoSearchRun().run,
+        description="Useful for searching the internet for information."
+    )
+    file_reader_tool = Tool(
+        name="File Reader",
+        func=FileReaderTool.read_file,
+        description="Useful for reading content from files."
+    )
 
     agent_configs = [
         {
