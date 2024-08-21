@@ -35,7 +35,7 @@ This project leverages a combination of AI tools to automate the process of rese
 1. Run the script:
 
     ```sh
-    python main.py
+    python research-agent.py
     ```
 
 2. Enter the research topic when prompted.
