@@ -69,12 +69,15 @@ def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
         recent_performances = agent_performance_logs[agent.role][-3:]
         avg_quality = sum(p.get('quality_score', 0) for p in recent_performances) / 3
         avg_content = sum(p.get('content_score', 0) for p in recent_performances) / 3
+        avg_creativity = sum(p.get('creativity_score', 0) for p in recent_performances) / 3
 
         improvements = []
         if avg_quality < 0.7:
             improvements.append("increase overall quality")
         if avg_content < 0.3:
             improvements.append("focus on relevant content")
+        if avg_creativity < 0.5:
+            improvements.append("enhance creative thinking")
         
         for area in performance.get('areas_for_improvement', []):
             improvements.append(area.lower())
@@ -84,6 +87,37 @@ def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
             agent.goal += f" with emphasis on: {improvement_str}"
             if agent.verbose:
                 logging.info(f"{agent.role.capitalize()} has updated its goal to: {agent.goal}")
+        
+        # Implement adaptive learning rate
+        learning_rate = 0.1 * (1 - avg_quality)  # Adjust learning rate based on performance
+        
+        # Update agent's skills or knowledge base
+        agent.update_skills(improvements, learning_rate)
+        
+        # Reflect on past performance and generate insights
+        insights = agent.reflect_on_performance(recent_performances)
+        if agent.verbose:
+            logging.info(f"{agent.role.capitalize()} insights: {insights}")
+
+def update_skills(self, improvements: List[str], learning_rate: float) -> None:
+    for improvement in improvements:
+        if improvement not in self.skills:
+            self.skills[improvement] = 0
+        self.skills[improvement] += learning_rate
+    if self.verbose:
+        logging.info(f"{self.role.capitalize()} updated skills: {self.skills}")
+
+def reflect_on_performance(self, performances: List[Dict[str, Any]]) -> str:
+    # Analyze trends and patterns in performance
+    trend = "improving" if performances[-1]['quality_score'] > performances[0]['quality_score'] else "declining"
+    strengths = [area for area, score in performances[-1].items() if score > 0.7]
+    weaknesses = [area for area, score in performances[-1].items() if score < 0.3]
+    
+    insights = f"Performance trend is {trend}. Strengths: {', '.join(strengths)}. Areas for improvement: {', '.join(weaknesses)}."
+    return insights
+
+CrewAgent.update_skills = update_skills
+CrewAgent.reflect_on_performance = reflect_on_performance
 
 def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
     """Create and return various specialized agents."""
