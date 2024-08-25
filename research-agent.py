@@ -207,12 +207,24 @@ def evaluate_performance(crew_output: str) -> Dict[str, Any]:
         "areas_for_improvement": areas_for_improvement
     }
 
-def run_research_process(crew: Crew) -> Any:
+def run_research_process(crew: Crew) -> Optional[str]:
     """Run the research process and return the result."""
-    result = crew.kickoff()
-    print("\n" + "#" * 20)
-    print(result)
-    return result
+    try:
+        result = crew.kickoff()
+        print("\n" + "#" * 20)
+        print(result)
+        if isinstance(result, str):
+            return result
+        elif hasattr(result, 'final_output'):
+            return result.final_output
+        elif hasattr(result, 'result'):
+            return result.result
+        else:
+            logging.warning(f"Unexpected result type: {type(result)}")
+            return str(result)
+    except Exception as e:
+        logging.error(f"Error during research process: {e}", exc_info=True)
+        return None
 
 def main():
     """Main function to orchestrate the script's execution."""
