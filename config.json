@@ -1,0 +1,79 @@
+{
+    "openai_model": "gpt-4",
+    "temperature": 0.2,
+    "agent_configs": [
+        {
+            "role": "researcher",
+            "goal": "Conduct thorough research on the specified topic using diverse and reliable sources",
+            "backstory": "An AI research assistant with expertise in academic literature review",
+            "tools": ["DuckDuckGo Search"]
+        },
+        {
+            "role": "technical writer",
+            "goal": "Write clear, concise, and technically accurate research papers on the specified topic",
+            "backstory": "An AI writer with experience in scientific and technical documentation",
+            "tools": []
+        },
+        {
+            "role": "data gatherer",
+            "goal": "Collect comprehensive and relevant data from various sources including academic databases and reputable websites",
+            "backstory": "An AI designed to efficiently collect and organize data from diverse sources",
+            "tools": ["DuckDuckGo Search", "File Reader"]
+        },
+        {
+            "role": "fact checker",
+            "goal": "Rigorously verify the accuracy and reliability of gathered information",
+            "backstory": "An AI dedicated to ensuring the veracity of data with a strong background in critical analysis",
+            "tools": ["DuckDuckGo Search"]
+        },
+        {
+            "role": "information correlator",
+            "goal": "Synthesize information from multiple sources to identify patterns, trends, and potential breakthroughs",
+            "backstory": "An AI expert in data analysis and pattern recognition across diverse fields",
+            "tools": ["DuckDuckGo Search"]
+        },
+        {
+            "role": "autonomous research assistant",
+            "goal": "Coordinate research efforts and assist in producing high-quality research papers autonomously",
+            "backstory": "An AI capable of managing complex research projects and collaborating with human researchers",
+            "tools": ["DuckDuckGo Search", "File Reader"]
+        }
+    ],
+    "task_configs": [
+        {
+            "description": "Conduct a comprehensive literature review on {topic}",
+            "role": "researcher",
+            "expected_output": "A detailed report on the current state of research on {topic}"
+        },
+        {
+            "description": "Identify and analyze key methodologies related to {topic}",
+            "role": "researcher",
+            "expected_output": "A comparative analysis of methodologies in {topic}"
+        },
+        {
+            "description": "Gather and organize data from recent studies on {topic}",
+            "role": "data gatherer",
+            "expected_output": "A structured dataset of recent research findings on {topic}"
+        },
+        {
+            "description": "Verify and validate the collected data and findings on {topic}",
+            "role": "fact checker",
+            "expected_output": "A comprehensive verification report with confidence scores for each piece of information"
+        },
+        {
+            "description": "Analyze correlations and identify emerging trends in {topic}",
+            "role": "information correlator",
+            "expected_output": "An in-depth analysis report highlighting key trends and potential breakthroughs in {topic}"
+        },
+        {
+            "description": "Draft a technical research paper on {topic} incorporating all findings",
+            "role": "technical writer",
+            "expected_output": "A well-structured draft of a technical paper on {topic} with proper citations"
+        },
+        {
+            "description": "Review, refine, and finalize the research paper on {topic}",
+            "role": "autonomous research assistant",
+            "expected_output": "A polished, publication-ready research paper on {topic}"
+        }
+    ]
+}

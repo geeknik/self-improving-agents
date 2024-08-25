@@ -1,6 +1,7 @@
 import os
 import warnings
 import logging
+import json
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -14,6 +15,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Suppress Pydantic warning
 warnings.filterwarnings("ignore", category=UserWarning, module='pydantic._internal._config')
 
+# Load configuration
+with open('config.json', 'r') as config_file:
+    CONFIG = json.load(config_file)
+
+# Global variable to track progress
+PROGRESS = {"completed_tasks": 0, "total_tasks": 0}
+
 def setup_environment() -> Optional[str]:
     """Load environment variables and initialize API key."""
     load_dotenv()
@@ -26,15 +34,20 @@ def setup_environment() -> Optional[str]:
 
 def initialize_llm(api_key: str) -> ChatOpenAI:
     """Set up the language model with the provided API key."""
-    return ChatOpenAI(model="gpt-4", temperature=0.2, api_key=api_key)
+    return ChatOpenAI(model=CONFIG['openai_model'], temperature=CONFIG['temperature'], api_key=api_key)
 
 class FileReaderTool:
     @staticmethod
     def read_file(file_path: str) -> str:
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"The file {file_path} does not exist.")
-        with open(file_path, 'r') as file:
-            return file.read()
+        try:
+            with open(file_path, 'r') as file:
+                return file.read()
+        except FileNotFoundError:
+            logging.error(f"The file {file_path} does not exist.")
+            return f"Error: File {file_path} not found."
+        except Exception as e:
+            logging.error(f"Error reading file {file_path}: {str(e)}")
+            return f"Error reading file: {str(e)}"
 
 # Global dictionary to store performance logs for each agent
 agent_performance_logs: Dict[str, List[Dict[str, Any]]] = {}
@@ -100,6 +113,8 @@ def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
             logging.info(f"{agent.role.capitalize()} insights: {insights}")
 
 def update_skills(self, improvements: List[str], learning_rate: float) -> None:
+    if not hasattr(self, 'skills'):
+        self.skills = {}
     for improvement in improvements:
         if improvement not in self.skills:
             self.skills[improvement] = 0
@@ -132,75 +147,31 @@ def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
         description="Useful for reading content from files."
     )
 
-    agent_configs = [
-        {
-            'role': 'researcher',
-            'goal': 'Conduct thorough research on the specified topic using diverse and reliable sources',
-            'backstory': 'An AI research assistant with expertise in academic literature review',
-            'tools': [search_tool],
-        },
-        {
-            'role': 'technical writer',
-            'goal': 'Write clear, concise, and technically accurate research papers on the specified topic',
-            'backstory': 'An AI writer with experience in scientific and technical documentation',
-            'tools': [],
-        },
-        {
-            'role': 'data gatherer',
-            'goal': 'Collect comprehensive and relevant data from various sources including academic databases and reputable websites',
-            'backstory': 'An AI designed to efficiently collect and organize data from diverse sources',
-            'tools': [search_tool, file_reader_tool],
-        },
-        {
-            'role': 'fact checker',
-            'goal': 'Rigorously verify the accuracy and reliability of gathered information',
-            'backstory': 'An AI dedicated to ensuring the veracity of data with a strong background in critical analysis',
-            'tools': [search_tool],
-        },
-        {
-            'role': 'information correlator',
-            'goal': 'Synthesize information from multiple sources to identify patterns, trends, and potential breakthroughs',
-            'backstory': 'An AI expert in data analysis and pattern recognition across diverse fields',
-            'tools': [search_tool],
-        },
-        {
-            'role': 'autonomous research assistant',
-            'goal': 'Coordinate research efforts and assist in producing high-quality research papers autonomously',
-            'backstory': 'An AI capable of managing complex research projects and collaborating with human researchers',
-            'tools': [search_tool, file_reader_tool],
-        }
-    ]
+    tool_map = {
+        "DuckDuckGo Search": search_tool,
+        "File Reader": file_reader_tool
+    }
 
     return [
         create_agent(
             role=config['role'],
             goal=config['goal'],
             backstory=config['backstory'],
-            tools=config['tools'],
+            tools=[tool_map[tool] for tool in config['tools']],
             verbose=True,
             llm=llm,
             allow_delegation=True
-        ) for config in agent_configs
+        ) for config in CONFIG['agent_configs']
     ]
 
 def define_tasks(agents: List[CrewAgent], topic: str) -> List[Task]:
     """Create tasks for the agents based on the specified topic."""
-    task_configs = [
-        ('Conduct a comprehensive literature review on {topic}', 'researcher', 'A detailed report on the current state of research on {topic}'),
-        ('Identify and analyze key methodologies related to {topic}', 'researcher', 'A comparative analysis of methodologies in {topic}'),
-        ('Gather and organize data from recent studies on {topic}', 'data gatherer', 'A structured dataset of recent research findings on {topic}'),
-        ('Verify and validate the collected data and findings on {topic}', 'fact checker', 'A comprehensive verification report with confidence scores for each piece of information'),
-        ('Analyze correlations and identify emerging trends in {topic}', 'information correlator', 'An in-depth analysis report highlighting key trends and potential breakthroughs in {topic}'),
-        ('Draft a technical research paper on {topic} incorporating all findings', 'technical writer', 'A well-structured draft of a technical paper on {topic} with proper citations'),
-        ('Review, refine, and finalize the research paper on {topic}', 'autonomous research assistant', 'A polished, publication-ready research paper on {topic}')
-    ]
-
     return [
         Task(
-            description=desc.format(topic=topic),
-            agent=next(agent for agent in agents if agent.role == role),
-            expected_output=output.format(topic=topic)
-        ) for desc, role, output in task_configs
+            description=config['description'].format(topic=topic),
+            agent=next(agent for agent in agents if agent.role == config['role']),
+            expected_output=config['expected_output'].format(topic=topic)
+        ) for config in CONFIG['task_configs']
     ]
 
 def evaluate_performance(crew_output: str) -> Dict[str, Any]:
@@ -231,13 +202,15 @@ def evaluate_performance(crew_output: str) -> Dict[str, Any]:
         areas_for_improvement.append("Suggest future research directions")
 
     content_score = sum(crew_output.lower().count(word) for word in ['data', 'analysis', 'result', 'conclusion']) / word_count
+    creativity_score = len(set(crew_output.split())) / word_count  # Unique words ratio as a simple creativity metric
 
-    logging.info(f"Performance evaluation completed. Quality score: {quality_score}, Content score: {content_score}")
+    logging.info(f"Performance evaluation completed. Quality score: {quality_score}, Content score: {content_score}, Creativity score: {creativity_score}")
 
     return {
         "word_count": word_count,
         "quality_score": quality_score,
         "content_score": content_score,
+        "creativity_score": creativity_score,
         "areas_for_improvement": areas_for_improvement
     }
 
@@ -260,6 +233,14 @@ def run_research_process(crew: Crew) -> Optional[str]:
         logging.error(f"Error during research process: {e}", exc_info=True)
         return None
 
+def update_progress(completed_tasks: int, total_tasks: int):
+    """Update the global progress tracker."""
+    global PROGRESS
+    PROGRESS["completed_tasks"] = completed_tasks
+    PROGRESS["total_tasks"] = total_tasks
+    progress_percentage = (completed_tasks / total_tasks) * 100
+    logging.info(f"Research Progress: {progress_percentage:.2f}% ({completed_tasks}/{total_tasks} tasks completed)")
+
 def main():
     """Main function to orchestrate the script's execution."""
     try:
@@ -280,6 +261,9 @@ def main():
             verbose=True,
             process=Process.sequential
         )
+
+        # Set up progress tracking
+        update_progress(0, len(tasks))
 
         result = run_research_process(crew)
         if not result:
@@ -303,6 +287,9 @@ def main():
         
         print("\nFinal Research Result:")
         print(result)
+
+        # Final progress update
+        update_progress(len(tasks), len(tasks))
 
     except Exception as e:
         logging.error(f"An error occurred: {e}", exc_info=True)
