@@ -120,21 +120,28 @@ def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
             logging.info(f"{agent.role.capitalize()} insights: {insights}")
         
         # Update agent's memory
+        if not hasattr(create_agent, 'agent_memories'):
+            create_agent.agent_memories = {}
+        if agent.role not in create_agent.agent_memories:
+            create_agent.agent_memories[agent.role] = deque(maxlen=5)
         create_agent.agent_memories[agent.role].append({
             'performance': performance,
             'improvements': improvements,
             'insights': insights
         })
 
+# Global dictionary to store skills for each agent
+agent_skills: Dict[str, Dict[str, float]] = {}
+
 def update_skills(agent: CrewAgent, improvements: List[str], learning_rate: float) -> None:
-    if not hasattr(agent, 'skills'):
-        agent.skills = {}
+    if agent.role not in agent_skills:
+        agent_skills[agent.role] = {}
     for improvement in improvements:
-        if improvement not in agent.skills:
-            agent.skills[improvement] = 0
-        agent.skills[improvement] += learning_rate
+        if improvement not in agent_skills[agent.role]:
+            agent_skills[agent.role][improvement] = 0
+        agent_skills[agent.role][improvement] += learning_rate
     if agent.verbose:
-        logging.info(f"{agent.role.capitalize()} updated skills: {agent.skills}")
+        logging.info(f"{agent.role.capitalize()} updated skills: {agent_skills[agent.role]}")
 
 def reflect_on_performance(agent: CrewAgent, performances: List[Dict[str, Any]]) -> str:
     # Analyze trends and patterns in performance
@@ -142,7 +149,14 @@ def reflect_on_performance(agent: CrewAgent, performances: List[Dict[str, Any]])
     strengths = [area for area, score in performances[-1].items() if score > 0.7]
     weaknesses = [area for area, score in performances[-1].items() if score < 0.3]
     
-    insights = f"Performance trend is {trend}. Strengths: {', '.join(strengths)}. Areas for improvement: {', '.join(weaknesses)}."
+    # Include information about the agent's skills
+    if agent.role in agent_skills:
+        top_skills = sorted(agent_skills[agent.role].items(), key=lambda x: x[1], reverse=True)[:3]
+        skill_info = f"Top skills: {', '.join([skill for skill, _ in top_skills])}."
+    else:
+        skill_info = "No specific skills developed yet."
+    
+    insights = f"Performance trend is {trend}. Strengths: {', '.join(strengths)}. Areas for improvement: {', '.join(weaknesses)}. {skill_info}"
     return insights
 
 def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
