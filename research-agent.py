@@ -182,29 +182,39 @@ def evaluate_performance(crew_output: str) -> Dict[str, Any]:
     word_count = len(crew_output.split())
     
     # More sophisticated quality scoring
-    quality_score = min(word_count / 1000, 1)  # Base score on length
+    quality_score = min(word_count / 5000, 1)  # Base score on length
     
     # Check for key phrases that indicate quality
-    quality_indicators = ['methodology', 'analysis', 'conclusion', 'references', 'findings', 'data', 'evidence']
+    quality_indicators = ['introduction', 'literature review', 'methodology', 'analysis', 'results', 'discussion', 'conclusion', 'references', 'findings', 'data', 'evidence']
     for indicator in quality_indicators:
         if indicator in crew_output.lower():
-            quality_score += 0.1  # Boost score for each quality indicator
+            quality_score += 0.05  # Boost score for each quality indicator
     
     quality_score = min(quality_score, 1)  # Cap at 1.0
 
     areas_for_improvement = []
+    if 'introduction' not in crew_output.lower():
+        areas_for_improvement.append("Add a comprehensive introduction")
+    if 'literature review' not in crew_output.lower():
+        areas_for_improvement.append("Include a thorough literature review")
     if 'methodology' not in crew_output.lower():
         areas_for_improvement.append("Expand on methodology")
+    if 'results' not in crew_output.lower():
+        areas_for_improvement.append("Present detailed results")
+    if 'discussion' not in crew_output.lower():
+        areas_for_improvement.append("Provide in-depth discussion")
+    if 'conclusion' not in crew_output.lower():
+        areas_for_improvement.append("Add a strong conclusion")
     if 'recent' not in crew_output.lower():
         areas_for_improvement.append("Include more recent sources")
-    if word_count < 500:
-        areas_for_improvement.append("Increase content length")
+    if word_count < 5000:
+        areas_for_improvement.append("Increase content length to at least 5000 words")
     if 'limitation' not in crew_output.lower():
         areas_for_improvement.append("Discuss limitations of the research")
     if 'future' not in crew_output.lower():
         areas_for_improvement.append("Suggest future research directions")
 
-    content_score = sum(crew_output.lower().count(word) for word in ['data', 'analysis', 'result', 'conclusion']) / word_count
+    content_score = sum(crew_output.lower().count(word) for word in quality_indicators) / word_count
     creativity_score = len(set(crew_output.split())) / word_count  # Unique words ratio as a simple creativity metric
 
     logging.info(f"Performance evaluation completed. Quality score: {quality_score}, Content score: {content_score}, Creativity score: {creativity_score}")
@@ -225,11 +235,11 @@ def run_research_process(crew: Crew) -> Optional[str]:
         print(result)
         
         # Check if the result meets minimum length requirements
-        if isinstance(result, str) and len(result.split()) < 2000:
+        if isinstance(result, str) and len(result.split()) < 5000:
             logging.warning("Research output is too short. Requesting expansion.")
             expansion_task = Task(
-                description=f"The current research output is too short. Please expand on the following areas: methodology, results, discussion, and conclusion. Current output: {result}",
-                agent=crew.agents[0]  # Assign to the first agent, you might want to choose a specific agent for this task
+                description=f"The current research output is too short. Please expand on the following areas: introduction, literature review, methodology, results, discussion, and conclusion. Aim for a comprehensive paper of at least 5000 words. Current output: {result}",
+                agent=next(agent for agent in crew.agents if agent.role == "technical writer")
             )
             expanded_result = crew.task(expansion_task)
             result = expanded_result if expanded_result else result
@@ -292,9 +302,11 @@ def main():
             for agent in agents:
                 self_improve(agent, performance)
 
-            if performance['quality_score'] >= 0.8 and performance['word_count'] >= 3000:
+            if performance['quality_score'] >= 0.9 and performance['word_count'] >= 5000:
                 logging.info("Research meets quality and length requirements. Stopping iterations.")
                 break
+            elif iteration == max_iterations - 1:
+                logging.warning("Maximum iterations reached. Final output may not meet all quality standards.")
 
             if iteration < max_iterations - 1:
                 logging.info(f"Quality score or word count below threshold. Starting iteration {iteration + 2}...")

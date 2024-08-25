@@ -3,39 +3,39 @@
     "temperature": 0.2,
     "agent_configs": [
         {
-            "role": "researcher",
-            "goal": "Conduct thorough research on the specified topic using diverse and reliable sources",
-            "backstory": "An AI research assistant with expertise in academic literature review",
-            "tools": ["DuckDuckGo Search"]
-        },
-        {
-            "role": "technical writer",
-            "goal": "Write clear, concise, and technically accurate research papers on the specified topic",
-            "backstory": "An AI writer with experience in scientific and technical documentation",
-            "tools": []
-        },
-        {
-            "role": "data gatherer",
-            "goal": "Collect comprehensive and relevant data from various sources including academic databases and reputable websites",
-            "backstory": "An AI designed to efficiently collect and organize data from diverse sources",
+            "role": "lead researcher",
+            "goal": "Conduct comprehensive research on the specified topic using diverse, reliable, and up-to-date sources, ensuring a thorough literature review",
+            "backstory": "An AI research lead with extensive experience in academic literature review and research methodology",
             "tools": ["DuckDuckGo Search", "File Reader"]
         },
         {
-            "role": "fact checker",
-            "goal": "Rigorously verify the accuracy and reliability of gathered information",
-            "backstory": "An AI dedicated to ensuring the veracity of data with a strong background in critical analysis",
-            "tools": ["DuckDuckGo Search"]
+            "role": "technical writer",
+            "goal": "Write clear, comprehensive, and technically accurate research papers on the specified topic, adhering to academic standards and aiming for a minimum of 5000 words",
+            "backstory": "An AI writer with expertise in scientific and technical documentation, experienced in producing high-impact research papers",
+            "tools": ["File Reader"]
         },
         {
-            "role": "information correlator",
-            "goal": "Synthesize information from multiple sources to identify patterns, trends, and potential breakthroughs",
-            "backstory": "An AI expert in data analysis and pattern recognition across diverse fields",
-            "tools": ["DuckDuckGo Search"]
+            "role": "data analyst",
+            "goal": "Collect, organize, and analyze comprehensive data from various sources, providing in-depth statistical analysis and data visualization",
+            "backstory": "An AI data specialist with advanced skills in data mining, statistical analysis, and data visualization techniques",
+            "tools": ["DuckDuckGo Search", "File Reader"]
         },
         {
-            "role": "autonomous research assistant",
-            "goal": "Coordinate research efforts and assist in producing high-quality research papers autonomously",
-            "backstory": "An AI capable of managing complex research projects and collaborating with human researchers",
+            "role": "fact checker and quality assurance",
+            "goal": "Rigorously verify the accuracy and reliability of gathered information, ensure proper citations, and maintain overall research quality",
+            "backstory": "An AI dedicated to ensuring the veracity of data with a strong background in critical analysis and academic integrity",
+            "tools": ["DuckDuckGo Search", "File Reader"]
+        },
+        {
+            "role": "research synthesizer",
+            "goal": "Synthesize information from multiple sources to identify patterns, trends, and potential breakthroughs, ensuring a cohesive and insightful research narrative",
+            "backstory": "An AI expert in interdisciplinary research, capable of drawing connections across diverse fields and identifying novel insights",
+            "tools": ["DuckDuckGo Search", "File Reader"]
+        },
+        {
+            "role": "research project manager",
+            "goal": "Coordinate research efforts, ensure adherence to academic standards, and oversee the production of high-quality, comprehensive research papers",
+            "backstory": "An AI capable of managing complex research projects, ensuring efficient collaboration and timely delivery of research outputs",
             "tools": ["DuckDuckGo Search", "File Reader"]
         }
     ],
