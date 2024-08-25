@@ -177,13 +177,19 @@ def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
 
 def define_tasks(agents: List[CrewAgent], topic: str) -> List[Task]:
     """Create tasks for the agents based on the specified topic."""
-    return [
-        Task(
-            description=config['description'].format(topic=topic),
-            agent=next(agent for agent in agents if agent.role == config['role']),
-            expected_output=config['expected_output'].format(topic=topic)
-        ) for config in CONFIG['task_configs']
-    ]
+    tasks = []
+    for config in CONFIG['task_configs']:
+        try:
+            agent = next(agent for agent in agents if agent.role == config['role'])
+            task = Task(
+                description=config['description'].format(topic=topic),
+                agent=agent,
+                expected_output=config['expected_output'].format(topic=topic)
+            )
+            tasks.append(task)
+        except StopIteration:
+            logging.warning(f"No agent found for role: {config['role']}. Skipping this task.")
+    return tasks
 
 def evaluate_performance(crew_output: str) -> Dict[str, Any]:
     """Evaluate the performance of the crew based on the final output."""

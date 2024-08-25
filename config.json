@@ -42,27 +42,22 @@
     "task_configs": [
         {
             "description": "Conduct a comprehensive literature review on {topic}",
-            "role": "researcher",
+            "role": "lead researcher",
             "expected_output": "A detailed report on the current state of research on {topic}"
         },
         {
-            "description": "Identify and analyze key methodologies related to {topic}",
-            "role": "researcher",
-            "expected_output": "A comparative analysis of methodologies in {topic}"
-        },
-        {
             "description": "Gather and organize data from recent studies on {topic}",
-            "role": "data gatherer",
+            "role": "data analyst",
             "expected_output": "A structured dataset of recent research findings on {topic}"
         },
         {
             "description": "Verify and validate the collected data and findings on {topic}",
-            "role": "fact checker",
+            "role": "fact checker and quality assurance",
             "expected_output": "A comprehensive verification report with confidence scores for each piece of information"
         },
         {
             "description": "Analyze correlations and identify emerging trends in {topic}",
-            "role": "information correlator",
+            "role": "research synthesizer",
             "expected_output": "An in-depth analysis report highlighting key trends and potential breakthroughs in {topic}"
         },
         {
@@ -72,7 +67,7 @@
         },
         {
             "description": "Review, refine, and finalize the research paper on {topic}",
-            "role": "autonomous research assistant",
+            "role": "research project manager",
             "expected_output": "A polished, publication-ready research paper on {topic}"
         }
     ]
