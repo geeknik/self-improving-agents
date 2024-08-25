@@ -8,6 +8,8 @@ from langchain_openai import ChatOpenAI
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent as CrewAgent, Task, Process, Crew
 from langchain.tools import Tool
+import time
+from collections import deque
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -71,6 +73,7 @@ def create_agent(
         tools=tools
     )
     agent_performance_logs[agent.role] = []
+    agent.memory = deque(maxlen=5)  # Add a memory to keep track of recent actions
     return agent
 
 def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
@@ -220,6 +223,17 @@ def run_research_process(crew: Crew) -> Optional[str]:
         result = crew.kickoff()
         print("\n" + "#" * 20)
         print(result)
+        
+        # Check if the result meets minimum length requirements
+        if isinstance(result, str) and len(result.split()) < 2000:
+            logging.warning("Research output is too short. Requesting expansion.")
+            expansion_task = Task(
+                description=f"The current research output is too short. Please expand on the following areas: methodology, results, discussion, and conclusion. Current output: {result}",
+                agent=crew.agents[0]  # Assign to the first agent, you might want to choose a specific agent for this task
+            )
+            expanded_result = crew.task(expansion_task)
+            result = expanded_result if expanded_result else result
+
         if isinstance(result, str):
             return result
         elif hasattr(result, 'final_output'):
@@ -265,26 +279,27 @@ def main():
         # Set up progress tracking
         update_progress(0, len(tasks))
 
-        result = run_research_process(crew)
-        if not result:
-            logging.error("Research process failed to produce a result.")
-            return
-
-        performance = evaluate_performance(result)
-        logging.info(f"Initial Performance Evaluation: {performance}")
-
-        for agent in agents:
-            self_improve(agent, performance)
-
-        if performance['quality_score'] < 0.7:
-            logging.info("Re-running the research process with improved agents...")
+        max_iterations = 3
+        for iteration in range(max_iterations):
             result = run_research_process(crew)
             if not result:
-                logging.error("Second research process failed to produce a result.")
-                return
-            final_performance = evaluate_performance(result)
-            logging.info(f"Final Performance Evaluation: {final_performance}")
-        
+                logging.error(f"Research process failed to produce a result in iteration {iteration + 1}.")
+                continue
+
+            performance = evaluate_performance(result)
+            logging.info(f"Performance Evaluation (Iteration {iteration + 1}): {performance}")
+
+            for agent in agents:
+                self_improve(agent, performance)
+
+            if performance['quality_score'] >= 0.8 and performance['word_count'] >= 3000:
+                logging.info("Research meets quality and length requirements. Stopping iterations.")
+                break
+
+            if iteration < max_iterations - 1:
+                logging.info(f"Quality score or word count below threshold. Starting iteration {iteration + 2}...")
+                time.sleep(5)  # Add a small delay to prevent rate limiting
+
         print("\nFinal Research Result:")
         print(result)
 
