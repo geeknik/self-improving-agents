@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent as CrewAgent, Task, Process, Crew
+from collections import deque
 from langchain.tools import Tool
 import time
 from collections import deque
@@ -73,7 +74,10 @@ def create_agent(
         tools=tools
     )
     agent_performance_logs[agent.role] = []
-    agent.memory = deque(maxlen=5)  # Add a memory to keep track of recent actions
+    # Instead of adding memory to the agent, we'll use a separate dictionary
+    if not hasattr(create_agent, 'agent_memories'):
+        create_agent.agent_memories = {}
+    create_agent.agent_memories[agent.role] = deque(maxlen=5)
     return agent
 
 def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
@@ -108,24 +112,31 @@ def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
         learning_rate = 0.1 * (1 - avg_quality)  # Adjust learning rate based on performance
         
         # Update agent's skills or knowledge base
-        agent.update_skills(improvements, learning_rate)
+        update_skills(agent, improvements, learning_rate)
         
         # Reflect on past performance and generate insights
-        insights = agent.reflect_on_performance(recent_performances)
+        insights = reflect_on_performance(agent, recent_performances)
         if agent.verbose:
             logging.info(f"{agent.role.capitalize()} insights: {insights}")
+        
+        # Update agent's memory
+        create_agent.agent_memories[agent.role].append({
+            'performance': performance,
+            'improvements': improvements,
+            'insights': insights
+        })
 
-def update_skills(self, improvements: List[str], learning_rate: float) -> None:
-    if not hasattr(self, 'skills'):
-        self.skills = {}
+def update_skills(agent: CrewAgent, improvements: List[str], learning_rate: float) -> None:
+    if not hasattr(agent, 'skills'):
+        agent.skills = {}
     for improvement in improvements:
-        if improvement not in self.skills:
-            self.skills[improvement] = 0
-        self.skills[improvement] += learning_rate
-    if self.verbose:
-        logging.info(f"{self.role.capitalize()} updated skills: {self.skills}")
+        if improvement not in agent.skills:
+            agent.skills[improvement] = 0
+        agent.skills[improvement] += learning_rate
+    if agent.verbose:
+        logging.info(f"{agent.role.capitalize()} updated skills: {agent.skills}")
 
-def reflect_on_performance(self, performances: List[Dict[str, Any]]) -> str:
+def reflect_on_performance(agent: CrewAgent, performances: List[Dict[str, Any]]) -> str:
     # Analyze trends and patterns in performance
     trend = "improving" if performances[-1]['quality_score'] > performances[0]['quality_score'] else "declining"
     strengths = [area for area, score in performances[-1].items() if score > 0.7]
@@ -133,9 +144,6 @@ def reflect_on_performance(self, performances: List[Dict[str, Any]]) -> str:
     
     insights = f"Performance trend is {trend}. Strengths: {', '.join(strengths)}. Areas for improvement: {', '.join(weaknesses)}."
     return insights
-
-CrewAgent.update_skills = update_skills
-CrewAgent.reflect_on_performance = reflect_on_performance
 
 def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
     """Create and return various specialized agents."""
