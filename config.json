@@ -38,8 +38,12 @@
             "backstory": "An AI capable of managing complex research projects, ensuring efficient collaboration and timely delivery of research outputs",
             "tools": ["DuckDuckGo Search", "File Reader"]
         }
+
+
     ],
     "task_configs": [
+    
+    
         {
             "description": "Conduct a comprehensive literature review on {topic}",
             "role": "lead researcher",
@@ -70,5 +74,7 @@
             "role": "research project manager",
             "expected_output": "A polished, publication-ready research paper on {topic}"
         }
+
+
     ]
 }

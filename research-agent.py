@@ -190,7 +190,7 @@ def define_tasks(agents: List[CrewAgent], topic: str) -> List[Task]:
         except StopIteration:
             logging.warning(f"No agent found for role: {config['role']}. Skipping this task.")
     return tasks
-
+    
 def evaluate_performance(crew_output: str) -> Dict[str, Any]:
     """Evaluate the performance of the crew based on the final output."""
     word_count = len(crew_output.split())
