@@ -60,19 +60,30 @@ def create_agent(
     agent_performance_logs[agent.role] = []
     return agent
 
-def self_improve(agent: CrewAgent, result: Dict[str, Any]) -> None:
-    agent_performance_logs[agent.role].append(result)
+def self_improve(agent: CrewAgent, performance: Dict[str, Any]) -> None:
+    agent_performance_logs[agent.role].append(performance)
     if agent.verbose:
-        print(f"{agent.role.capitalize()} is self-improving based on the result: {result}")
+        logging.info(f"{agent.role.capitalize()} is self-improving based on the performance: {performance}")
 
     if len(agent_performance_logs[agent.role]) >= 3:
         recent_performances = agent_performance_logs[agent.role][-3:]
-        avg_performance = sum(p.get('quality_score', 0) for p in recent_performances) / 3
+        avg_quality = sum(p.get('quality_score', 0) for p in recent_performances) / 3
+        avg_content = sum(p.get('content_score', 0) for p in recent_performances) / 3
 
-        if avg_performance < 0.7:
-            agent.goal += " with increased focus on accuracy and relevance"
+        improvements = []
+        if avg_quality < 0.7:
+            improvements.append("increase overall quality")
+        if avg_content < 0.3:
+            improvements.append("focus on relevant content")
+        
+        for area in performance.get('areas_for_improvement', []):
+            improvements.append(area.lower())
+
+        if improvements:
+            improvement_str = ", ".join(improvements)
+            agent.goal += f" with emphasis on: {improvement_str}"
             if agent.verbose:
-                print(f"{agent.role.capitalize()} has updated its goal to improve performance.")
+                logging.info(f"{agent.role.capitalize()} has updated its goal to: {agent.goal}")
 
 def create_agents(llm: ChatOpenAI) -> List[CrewAgent]:
     """Create and return various specialized agents."""
@@ -158,41 +169,41 @@ def define_tasks(agents: List[CrewAgent], topic: str) -> List[Task]:
         ) for desc, role, output in task_configs
     ]
 
-def evaluate_performance(crew_output: Any) -> Dict[str, Any]:
+def evaluate_performance(crew_output: str) -> Dict[str, Any]:
     """Evaluate the performance of the crew based on the final output."""
-    result = (
-        crew_output if isinstance(crew_output, str)
-        else getattr(crew_output, 'final_output', None) or
-        getattr(crew_output, 'result', None) or
-        str(crew_output)
-    )
-
-    word_count = len(result.split())
+    word_count = len(crew_output.split())
     
     # More sophisticated quality scoring
     quality_score = min(word_count / 1000, 1)  # Base score on length
     
     # Check for key phrases that indicate quality
-    quality_indicators = ['methodology', 'analysis', 'conclusion', 'references']
+    quality_indicators = ['methodology', 'analysis', 'conclusion', 'references', 'findings', 'data', 'evidence']
     for indicator in quality_indicators:
-        if indicator in result.lower():
+        if indicator in crew_output.lower():
             quality_score += 0.1  # Boost score for each quality indicator
     
     quality_score = min(quality_score, 1)  # Cap at 1.0
 
     areas_for_improvement = []
-    if 'methodology' not in result.lower():
+    if 'methodology' not in crew_output.lower():
         areas_for_improvement.append("Expand on methodology")
-    if 'recent' not in result.lower():
+    if 'recent' not in crew_output.lower():
         areas_for_improvement.append("Include more recent sources")
     if word_count < 500:
         areas_for_improvement.append("Increase content length")
+    if 'limitation' not in crew_output.lower():
+        areas_for_improvement.append("Discuss limitations of the research")
+    if 'future' not in crew_output.lower():
+        areas_for_improvement.append("Suggest future research directions")
 
-    logging.info(f"Performance evaluation completed. Quality score: {quality_score}")
+    content_score = sum(crew_output.lower().count(word) for word in ['data', 'analysis', 'result', 'conclusion']) / word_count
+
+    logging.info(f"Performance evaluation completed. Quality score: {quality_score}, Content score: {content_score}")
 
     return {
         "word_count": word_count,
         "quality_score": quality_score,
+        "content_score": content_score,
         "areas_for_improvement": areas_for_improvement
     }
 
@@ -225,8 +236,12 @@ def main():
         )
 
         result = run_research_process(crew)
+        if not result:
+            logging.error("Research process failed to produce a result.")
+            return
+
         performance = evaluate_performance(result)
-        logging.info(f"Performance Evaluation: {performance}")
+        logging.info(f"Initial Performance Evaluation: {performance}")
 
         for agent in agents:
             self_improve(agent, performance)
@@ -234,8 +249,14 @@ def main():
         if performance['quality_score'] < 0.7:
             logging.info("Re-running the research process with improved agents...")
             result = run_research_process(crew)
+            if not result:
+                logging.error("Second research process failed to produce a result.")
+                return
             final_performance = evaluate_performance(result)
             logging.info(f"Final Performance Evaluation: {final_performance}")
+        
+        print("\nFinal Research Result:")
+        print(result)
 
     except Exception as e:
         logging.error(f"An error occurred: {e}", exc_info=True)
