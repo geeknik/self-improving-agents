@@ -1,21 +1,27 @@
 import os
 import warnings
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent as CrewAgent, Task, Process, Crew
 from langchain.tools import Tool
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Suppress Pydantic warning
 warnings.filterwarnings("ignore", category=UserWarning, module='pydantic._internal._config')
 
-def setup_environment() -> str:
+def setup_environment() -> Optional[str]:
     """Load environment variables and initialize API key."""
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY not found in .env file")
+        logging.error("OPENAI_API_KEY not found in .env file")
+        return None
+    logging.info("Environment setup completed successfully")
     return api_key
 
 def initialize_llm(api_key: str) -> ChatOpenAI:
@@ -162,12 +168,32 @@ def evaluate_performance(crew_output: Any) -> Dict[str, Any]:
     )
 
     word_count = len(result.split())
-    quality_score = min(word_count / 1000, 1)  # Assume 1000 words is a good length
+    
+    # More sophisticated quality scoring
+    quality_score = min(word_count / 1000, 1)  # Base score on length
+    
+    # Check for key phrases that indicate quality
+    quality_indicators = ['methodology', 'analysis', 'conclusion', 'references']
+    for indicator in quality_indicators:
+        if indicator in result.lower():
+            quality_score += 0.1  # Boost score for each quality indicator
+    
+    quality_score = min(quality_score, 1)  # Cap at 1.0
+
+    areas_for_improvement = []
+    if 'methodology' not in result.lower():
+        areas_for_improvement.append("Expand on methodology")
+    if 'recent' not in result.lower():
+        areas_for_improvement.append("Include more recent sources")
+    if word_count < 500:
+        areas_for_improvement.append("Increase content length")
+
+    logging.info(f"Performance evaluation completed. Quality score: {quality_score}")
 
     return {
         "word_count": word_count,
         "quality_score": quality_score,
-        "areas_for_improvement": ["Expand on methodology", "Include more recent sources"] if quality_score < 0.8 else []
+        "areas_for_improvement": areas_for_improvement
     }
 
 def run_research_process(crew: Crew) -> Any:
@@ -181,6 +207,10 @@ def main():
     """Main function to orchestrate the script's execution."""
     try:
         api_key = setup_environment()
+        if not api_key:
+            logging.error("Failed to set up environment. Exiting.")
+            return
+
         llm = initialize_llm(api_key)
         agents = create_agents(llm)
 
@@ -196,17 +226,19 @@ def main():
 
         result = run_research_process(crew)
         performance = evaluate_performance(result)
-        print(f"\nPerformance Evaluation: {performance}")
+        logging.info(f"Performance Evaluation: {performance}")
 
         for agent in agents:
             self_improve(agent, performance)
 
         if performance['quality_score'] < 0.7:
-            print("\nRe-running the research process with improved agents...")
+            logging.info("Re-running the research process with improved agents...")
             result = run_research_process(crew)
+            final_performance = evaluate_performance(result)
+            logging.info(f"Final Performance Evaluation: {final_performance}")
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()
